@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { GenerationResult, UploadedImage, PhotoConfiguration, EditorSettings } from '../types';
 
 interface GeneratedResultProps {
-  originalImage: UploadedImage;
+  originalImage?: UploadedImage; // Make optional
   result: GenerationResult;
   config: PhotoConfiguration;
   onReset: () => void;
@@ -49,6 +49,27 @@ const GeneratedResult: React.FC<GeneratedResultProps> = ({ originalImage, result
     filter: `brightness(${editorSettings.brightness}%) contrast(${editorSettings.contrast}%) saturate(${editorSettings.saturation}%) grayscale(${editorSettings.grayscale}%) sepia(${editorSettings.sepia}%)`
   };
 
+  // EXIF Simulation
+  const getExifData = () => {
+      // Simulate lens based on composition
+      let lens = '50mm';
+      let aperture = 'f/2.8';
+      if(config.composition === 'close_up') { lens = '105mm'; aperture = 'f/2.8'; }
+      if(config.composition === 'wide_shot') { lens = '35mm'; aperture = 'f/5.6'; }
+      if(config.composition === 'center') { lens = '85mm'; aperture = 'f/1.8'; }
+      if(config.composition === 'rule_of_thirds') { lens = '50mm'; aperture = 'f/2.0'; }
+
+      return {
+          camera: 'Canon EOS R5',
+          lens: lens,
+          aperture: aperture,
+          iso: 'ISO 100',
+          shutter: '1/200s'
+      }
+  }
+
+  const exif = getExifData();
+
   return (
     <div className="animate-fade-in w-full">
       <div className="bg-white shadow-xl overflow-hidden border border-stone-200">
@@ -65,7 +86,7 @@ const GeneratedResult: React.FC<GeneratedResultProps> = ({ originalImage, result
               onClick={onReset}
               className="px-6 py-2 bg-white text-stone-600 border border-stone-300 hover:bg-stone-50 hover:text-stone-900 font-medium transition-colors text-sm shadow-sm"
             >
-              Retake
+              Edit Settings
             </button>
             <button
               onClick={handleSaveClick}
@@ -108,20 +129,22 @@ const GeneratedResult: React.FC<GeneratedResultProps> = ({ originalImage, result
           
           {/* Main Viewer */}
           <div className="flex-1 bg-stone-100 relative flex items-center justify-center p-8 overflow-hidden">
-             {/* Comparison Toggle */}
-            <div 
-              className="absolute top-4 right-4 z-20 bg-white/80 backdrop-blur-md px-4 py-2 text-xs font-bold uppercase tracking-wider cursor-pointer select-none border border-stone-200 hover:bg-white transition-colors"
-              onMouseDown={() => setShowOriginal(true)}
-              onMouseUp={() => setShowOriginal(false)}
-              onMouseLeave={() => setShowOriginal(false)}
-              onTouchStart={() => setShowOriginal(true)}
-              onTouchEnd={() => setShowOriginal(false)}
-            >
-              Hold to Compare
-            </div>
+             {/* Comparison Toggle - Only if original image exists */}
+            {originalImage && (
+                <div 
+                className="absolute top-4 right-4 z-20 bg-white/80 backdrop-blur-md px-4 py-2 text-xs font-bold uppercase tracking-wider cursor-pointer select-none border border-stone-200 hover:bg-white transition-colors"
+                onMouseDown={() => setShowOriginal(true)}
+                onMouseUp={() => setShowOriginal(false)}
+                onMouseLeave={() => setShowOriginal(false)}
+                onTouchStart={() => setShowOriginal(true)}
+                onTouchEnd={() => setShowOriginal(false)}
+                >
+                Hold to Compare
+                </div>
+            )}
 
             <div className="relative w-full max-w-lg shadow-2xl bg-white p-2">
-               {showOriginal ? (
+               {showOriginal && originalImage ? (
                  <div className="relative aspect-[3/4]">
                    <img src={originalImage.previewUrl} className="w-full h-full object-cover" alt="Original" />
                    <div className="absolute top-2 left-2 bg-black/70 text-white text-[10px] px-2 py-1 uppercase tracking-widest font-bold">Original</div>
@@ -131,6 +154,11 @@ const GeneratedResult: React.FC<GeneratedResultProps> = ({ originalImage, result
                    <img src={result.imageUrl} className="w-full h-full object-cover" alt="Generated" />
                  </div>
                )}
+            </div>
+            
+            {/* EXIF Overlay on Image */}
+            <div className="absolute bottom-6 left-8 text-[10px] uppercase tracking-widest text-stone-500 font-bold hidden md:block">
+                 {exif.camera} <span className="mx-2">•</span> {exif.lens} <span className="mx-2">•</span> {exif.aperture} <span className="mx-2">•</span> {exif.iso}
             </div>
           </div>
 
@@ -203,6 +231,19 @@ const GeneratedResult: React.FC<GeneratedResultProps> = ({ originalImage, result
                   className="w-full h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-stone-900"
                 />
               </div>
+            </div>
+            
+            {/* Metadata Panel */}
+            <div className="mt-8 pt-6 border-t border-stone-100">
+               <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-3">Shot Metadata</h3>
+               <div className="grid grid-cols-2 gap-y-2 text-xs text-stone-600">
+                   <div className="text-stone-400">Lens</div>
+                   <div>{exif.lens}</div>
+                   <div className="text-stone-400">Aperture</div>
+                   <div>{exif.aperture}</div>
+                   <div className="text-stone-400">Lighting</div>
+                   <div>{config.lighting.replace('_', ' ')}</div>
+               </div>
             </div>
 
             <div className="pt-6">

@@ -32,18 +32,21 @@ export const generateHeadshot = async (
 
     // Iterate through assets and add them to the request
     assets.forEach((asset, index) => {
-      const cleanBase64 = asset.image.base64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
-      
+      // Always include the text description to orient the model
       parts.push({
-        text: `[Asset ${index + 1}: ${asset.type.toUpperCase()}] ${asset.description || ''}`
+        text: `[Asset ${index + 1}: ${asset.type.toUpperCase()}] ${asset.description || 'No description provided'}`
       });
       
-      parts.push({
-        inlineData: {
-          data: cleanBase64,
-          mimeType: asset.image.mimeType,
-        },
-      });
+      // Only attach image data if it exists
+      if (asset.image) {
+        const cleanBase64 = asset.image.base64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+        parts.push({
+          inlineData: {
+            data: cleanBase64,
+            mimeType: asset.image.mimeType,
+          },
+        });
+      }
     });
 
     const response = await ai.models.generateContent({

@@ -24,6 +24,7 @@ const Wizard: React.FC<WizardProps> = ({ onGenerate, isGenerating, initialConfig
     composition: 'center',
     promptModifiers: [],
     customPrompt: '',
+    batchSize: 1,
     assetContext: '',
     environmentContext: '',
     lightingContext: ''
@@ -66,59 +67,126 @@ const Wizard: React.FC<WizardProps> = ({ onGenerate, isGenerating, initialConfig
   // Helper component for adding a new asset
   const AssetAdder = () => {
     const [type, setType] = useState<AssetType>('subject');
+    const [mode, setMode] = useState<'upload' | 'text'>('upload');
     const [tempImage, setTempImage] = useState<any>(null);
+    const [tempDesc, setTempDesc] = useState('');
 
     const handleAdd = () => {
-        if(tempImage) {
+        if (mode === 'upload' && tempImage) {
             addAsset({
                 id: Date.now().toString(),
                 image: tempImage,
                 type: type,
-                description: ''
+                description: tempDesc
             });
             setTempImage(null);
-            // Default to 'garment' after adding a subject, or stay on garment/prop
-            if(type === 'subject') setType('garment');
+            setTempDesc('');
+        } else if (mode === 'text' && tempDesc.trim()) {
+            addAsset({
+                id: Date.now().toString(),
+                type: type,
+                description: tempDesc
+            });
+            setTempDesc('');
         }
+        
+        // Auto-advance logic for convenience
+        if(type === 'subject') setType('garment');
     }
 
     return (
         <div className="border border-dashed border-stone-300 bg-stone-50 p-6 flex flex-col items-center justify-center text-center">
-            {!tempImage ? (
-                 <div className="w-full h-48">
-                    <ImageUpload 
-                        selectedImage={null}
-                        onImageSelected={setTempImage}
-                        label="Add New Asset"
-                        subLabel="Subject, Garment, Prop, Background"
-                        compact={true}
-                    />
-                 </div>
-            ) : (
-                <div className="w-full">
-                    <div className="w-24 h-24 mx-auto mb-4 overflow-hidden shadow-sm border border-white">
-                        <img src={tempImage.previewUrl} className="w-full h-full object-cover" />
-                    </div>
+            
+            {/* Input Mode Toggle */}
+            <div className="flex space-x-4 mb-4 border-b border-stone-200 w-full justify-center pb-2">
+                 <button 
+                    onClick={() => setMode('upload')}
+                    className={`text-xs font-bold uppercase tracking-wider pb-1 ${mode === 'upload' ? 'text-stone-900 border-b-2 border-stone-900' : 'text-stone-400'}`}
+                 >
+                    Upload Image
+                 </button>
+                 <button 
+                    onClick={() => setMode('text')}
+                    className={`text-xs font-bold uppercase tracking-wider pb-1 ${mode === 'text' ? 'text-stone-900 border-b-2 border-stone-900' : 'text-stone-400'}`}
+                 >
+                    Text Description
+                 </button>
+            </div>
+
+            {/* Content Area */}
+            <div className="w-full">
+                {mode === 'upload' ? (
+                     !tempImage ? (
+                        <div className="w-full h-48 mb-4">
+                           <ImageUpload 
+                               selectedImage={null}
+                               onImageSelected={setTempImage}
+                               label="Upload Asset"
+                               subLabel="Subject, Garment, Prop, etc"
+                               compact={true}
+                           />
+                        </div>
+                     ) : (
+                       <div className="w-24 h-24 mx-auto mb-4 overflow-hidden shadow-sm border border-white relative group">
+                           <img src={tempImage.previewUrl} className="w-full h-full object-cover" />
+                           <button onClick={() => setTempImage(null)} className="absolute inset-0 bg-stone-900/50 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-bold">Change</button>
+                       </div>
+                     )
+                ) : (
                     <div className="mb-4">
-                        <label className="block text-xs font-bold uppercase tracking-wide text-stone-500 mb-1">Asset Type</label>
-                        <select 
-                            value={type} 
-                            onChange={(e) => setType(e.target.value as AssetType)}
-                            className="w-full p-2 bg-white border border-stone-300 text-stone-900 text-sm outline-none focus:border-stone-900"
-                        >
-                            <option value="subject">Main Subject (Person)</option>
-                            <option value="garment">Garment (Try-On)</option>
-                            <option value="background">Background Ref</option>
-                            <option value="prop">Prop / Object</option>
-                            <option value="reference">Style Reference</option>
-                        </select>
+                        <div className="w-16 h-16 bg-stone-200 rounded-full mx-auto mb-3 flex items-center justify-center text-stone-500">
+                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
+                        </div>
+                        <p className="text-stone-500 text-xs italic mb-2">Describe the asset without an image.</p>
                     </div>
-                    <div className="flex space-x-2">
-                        <button onClick={() => setTempImage(null)} className="flex-1 py-2 text-stone-500 hover:text-stone-900 text-sm">Cancel</button>
-                        <button onClick={handleAdd} className="flex-1 py-2 bg-stone-900 text-white hover:bg-stone-800 text-sm font-bold">Add to Scene</button>
-                    </div>
+                )}
+
+                {/* Type Selection */}
+                <div className="mb-4 text-left">
+                    <label className="block text-xs font-bold uppercase tracking-wide text-stone-500 mb-1">Asset Type</label>
+                    <select 
+                        value={type} 
+                        onChange={(e) => setType(e.target.value as AssetType)}
+                        className="w-full p-2 bg-white border border-stone-300 text-stone-900 text-sm outline-none focus:border-stone-900"
+                    >
+                        <option value="subject">Main Subject (Person)</option>
+                        <option value="garment">Garment (Try-On)</option>
+                        <option value="background">Background Ref</option>
+                        <option value="prop">Prop / Object</option>
+                        <option value="reference">Style Reference</option>
+                    </select>
                 </div>
-            )}
+
+                {/* Description Input */}
+                <div className="mb-4 text-left">
+                     <label className="block text-xs font-bold uppercase tracking-wide text-stone-500 mb-1">
+                        {mode === 'text' ? 'Description (Required)' : 'Description (Optional)'}
+                     </label>
+                     <input 
+                        type="text" 
+                        placeholder={type === 'subject' ? "E.g. A young woman with red hair" : "E.g. Red silk dress"}
+                        value={tempDesc}
+                        onChange={(e) => setTempDesc(e.target.value)}
+                        className="w-full p-2 border border-stone-300 focus:border-stone-900 outline-none bg-white text-sm"
+                     />
+                </div>
+
+                <div className="flex space-x-2">
+                    <button 
+                        onClick={() => { setTempImage(null); setTempDesc(''); }} 
+                        className="flex-1 py-2 text-stone-500 hover:text-stone-900 text-sm"
+                    >
+                        Clear
+                    </button>
+                    <button 
+                        onClick={handleAdd} 
+                        disabled={(mode === 'upload' && !tempImage) || (mode === 'text' && !tempDesc.trim())}
+                        className="flex-1 py-2 bg-stone-900 text-white hover:bg-stone-800 text-sm font-bold disabled:bg-stone-300 disabled:cursor-not-allowed"
+                    >
+                        Add to Scene
+                    </button>
+                </div>
+            </div>
         </div>
     )
   }
@@ -184,12 +252,19 @@ const Wizard: React.FC<WizardProps> = ({ onGenerate, isGenerating, initialConfig
               className="group cursor-pointer bg-white border border-stone-200 p-6 hover:border-stone-900 hover:shadow-lg transition-all duration-300"
             >
               <div className="h-40 bg-stone-100 mb-6 overflow-hidden relative">
-                 <div className="absolute inset-0 flex items-center justify-center text-stone-300">
+                 {/* Preset Preview Image Placeholder or Actual Image if available */}
+                 <div className="absolute inset-0 flex items-center justify-center text-stone-300 bg-stone-50">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-12 h-12"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /></svg>
                  </div>
               </div>
               <h3 className="font-serif text-xl font-bold text-stone-900 group-hover:text-stone-600 transition-colors">{preset.name}</h3>
               <p className="text-stone-500 text-sm mt-3 leading-relaxed">{preset.description}</p>
+              
+              {/* Config Preview */}
+              <div className="mt-4 pt-4 border-t border-stone-100 text-[10px] text-stone-400 uppercase tracking-wide flex justify-between">
+                <span>{preset.config.environment?.replace('_', ' ')}</span>
+                <span>{preset.config.lighting?.replace('_', ' ')}</span>
+              </div>
             </div>
           ))}
 
@@ -218,7 +293,7 @@ const Wizard: React.FC<WizardProps> = ({ onGenerate, isGenerating, initialConfig
             &larr; Back to Start
            </button>
           <h2 className="text-3xl font-serif font-bold text-stone-900">Cast & Assets</h2>
-          <p className="text-stone-500 mt-2 font-light">Upload the subject and any other assets (garments, props, backgrounds).</p>
+          <p className="text-stone-500 mt-2 font-light">Describe or upload the subject and any other assets (garments, props).</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -228,14 +303,20 @@ const Wizard: React.FC<WizardProps> = ({ onGenerate, isGenerating, initialConfig
                 
                 {config.assets.length === 0 ? (
                     <div className="p-8 text-center bg-white border border-stone-200 text-stone-400 font-light italic">
-                        No assets added yet. Please add at least a main subject.
+                        No assets added yet. Please add at least a main subject (Image or Description).
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {config.assets.map(asset => (
                             <div key={asset.id} className="flex bg-white border border-stone-200 p-3 shadow-sm hover:border-stone-400 transition-colors">
-                                <div className="w-20 h-20 flex-shrink-0 bg-stone-100 mr-4">
-                                    <img src={asset.image.previewUrl} className="w-full h-full object-cover" />
+                                <div className="w-20 h-20 flex-shrink-0 bg-stone-100 mr-4 flex items-center justify-center">
+                                    {asset.image ? (
+                                        <img src={asset.image.previewUrl} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="text-stone-400">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" /></svg>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex-1 flex flex-col justify-between">
                                     <div>
@@ -251,7 +332,7 @@ const Wizard: React.FC<WizardProps> = ({ onGenerate, isGenerating, initialConfig
                                         </div>
                                         <input 
                                             type="text" 
-                                            placeholder="Description (e.g. Red silk dress)"
+                                            placeholder={asset.image ? "Description (e.g. Red silk dress)" : "Description of prompt..."}
                                             value={asset.description || ''}
                                             onChange={(e) => updateAssetDescription(asset.id, e.target.value)}
                                             className="w-full mt-2 text-sm border-b border-stone-200 focus:border-stone-900 outline-none pb-1 bg-transparent"
@@ -277,7 +358,7 @@ const Wizard: React.FC<WizardProps> = ({ onGenerate, isGenerating, initialConfig
 
             {/* Uploader */}
             <div>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-stone-900 border-b border-stone-200 pb-2 mb-4">Upload</h3>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-stone-900 border-b border-stone-200 pb-2 mb-4">Add Asset</h3>
                 <AssetAdder />
             </div>
         </div>
@@ -453,19 +534,49 @@ const Wizard: React.FC<WizardProps> = ({ onGenerate, isGenerating, initialConfig
                     </div>
                 </div>
 
+                {/* Batch Size */}
+                <div>
+                   <h3 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3 border-b border-stone-200 pb-2">Batch Size</h3>
+                   <div className="flex space-x-2">
+                      {[1, 2, 3, 4].map(num => (
+                        <button
+                          key={num}
+                          onClick={() => setConfig({ ...config, batchSize: num })}
+                          className={`w-12 h-10 flex items-center justify-center font-bold text-sm border transition-all ${
+                            (config.batchSize || 1) === num 
+                            ? 'bg-stone-900 text-white border-stone-900' 
+                            : 'bg-white text-stone-500 border-stone-200 hover:border-stone-900'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      ))}
+                      <span className="text-xs text-stone-400 flex items-center ml-2">images per generation</span>
+                   </div>
+                </div>
+
                 <div>
                     <h3 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-5 border-b border-stone-200 pb-2">Final Instructions</h3>
                     <textarea
                         value={config.customPrompt}
                         onChange={(e) => setConfig({ ...config, customPrompt: e.target.value })}
                         placeholder="Any final details? (e.g. Ensure the tie is straight, cinematic film grain)"
-                        className="w-full h-40 p-4 border border-stone-300 bg-stone-50 focus:border-stone-900 outline-none transition-colors font-light text-sm"
+                        className="w-full h-32 p-4 border border-stone-300 bg-stone-50 focus:border-stone-900 outline-none transition-colors font-light text-sm"
                     />
                 </div>
             </div>
         </div>
 
-        <div className="mt-12 flex justify-between items-center pb-20 border-t border-stone-100 pt-8">
+        {/* Prompt Preview */}
+        <div className="mt-8 pt-6 border-t border-stone-100">
+             <div className="bg-stone-50 p-4 text-xs font-mono text-stone-500 border border-stone-200">
+                 <strong className="block text-stone-900 mb-1 uppercase tracking-wider">Prompt Preview (System):</strong>
+                 Environment: {config.environment} | Lighting: {config.lighting} ({config.lightingSettings.intensity}, {config.lightingSettings.color}) | Composition: {config.composition}
+                 {config.customPrompt && ` | User Note: ${config.customPrompt}`}
+             </div>
+        </div>
+
+        <div className="mt-12 flex justify-between items-center pb-20 pt-8">
           <button onClick={handleBack} className="text-stone-500 hover:text-stone-900 font-medium px-4">Back</button>
           
           <button

@@ -152,21 +152,30 @@ const App: React.FC = () => {
 
     try {
       const prompt = constructPrompt(config);
+      const batchSize = config.batchSize || 1;
+      
+      // Since Gemini doesn't natively support batch in one request easily with image assets structure, we loop.
+      // In a production backend, this would be parallelized.
+      for(let i=0; i<batchSize; i++) {
+        const imageUrl = await generateHeadshot(config.assets, prompt);
 
-      const imageUrl = await generateHeadshot(
-        config.assets,
-        prompt
-      );
+        const newImage: GeneratedImage = {
+          id: Date.now().toString() + Math.random().toString().slice(2,5),
+          url: imageUrl,
+          timestamp: Date.now(),
+          config: config
+        };
 
-      const newImage: GeneratedImage = {
-        id: Date.now().toString(),
-        url: imageUrl,
-        timestamp: Date.now(),
-        config: config
-      };
-
-      // Just set result, don't save yet until user confirms
-      setLastResult(newImage);
+        // Autosave
+        const updatedProject = addImageToProject(activeProject.id, newImage);
+        if(updatedProject) {
+            setProjects(getProjects());
+            setActiveProject(updatedProject);
+        }
+        
+        // Show last result
+        setLastResult(newImage);
+      }
       
     } catch (err: any) {
       console.error(err);
@@ -177,14 +186,7 @@ const App: React.FC = () => {
   };
 
   const handleSaveResult = () => {
-    if (lastResult && activeProject) {
-      const updatedProject = addImageToProject(activeProject.id, lastResult);
-      if (updatedProject) {
-        setProjects(getProjects());
-        setActiveProject(updatedProject);
-        // Do not navigate away immediately, allow user to continue editing or just see success state
-      }
-    }
+     // Autosave handles logic, this might be just visual confirmation or manual trigger if autosave disabled
   };
 
   // --- Views ---
@@ -314,13 +316,13 @@ const App: React.FC = () => {
 
   const renderWizard = () => {
     if (lastResult) {
-      // Find original subject for comparison
+      // Find original subject for comparison if available
       const originalSubject = lastResult.config.assets.find(a => a.type === 'subject')?.image;
       
       return (
         <div className="max-w-5xl mx-auto py-8 px-4 lg:px-8">
            <GeneratedResult 
-             originalImage={originalSubject!}
+             originalImage={originalSubject} // Can be undefined
              result={{ imageUrl: lastResult.url, timestamp: lastResult.timestamp }}
              config={lastResult.config}
              onReset={handleEditSettings}

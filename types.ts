@@ -45,7 +45,7 @@ export interface LightingSettings {
 
 export interface PhotoAsset {
   id: string;
-  image: UploadedImage;
+  image?: UploadedImage; // Image is now optional for text-only prompting
   type: AssetType;
   description?: string; // e.g. "Red silk dress" or "My vintage car"
 }
@@ -58,6 +58,7 @@ export interface PhotoConfiguration {
   composition: Composition;
   promptModifiers: string[]; 
   customPrompt?: string;
+  batchSize?: number;
   
   // Step-specific context prompts
   assetContext?: string;
